@@ -1,17 +1,16 @@
 import { google } from "googleapis";
-import path from "path";
+import dotenv from "dotenv";
 
-const SERVICE_ACCOUNT_PATH = path.resolve(
-  "config/service-account.json"
-);
+dotenv.config(); // Load .env variables
 
-// 🔐 Domain-Wide Delegation Auth
+// 🔐 Domain-Wide Delegation Auth using environment variables
 export const googleAuth = new google.auth.JWT({
-  keyFile: SERVICE_ACCOUNT_PATH,
+  email: process.env.GOOGLE_CLIENT_EMAIL,
+  key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
   scopes: [
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/spreadsheets"
   ],
-  subject: "day1ai@mainstreamtek.com" // Workspace user
+  subject: process.env.GOOGLE_WORKSPACE_USER // Workspace user
 });
