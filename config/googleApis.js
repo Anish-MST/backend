@@ -6,9 +6,22 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const TOKEN_PATH = path.join(__dirname, 'tokens.json');
+// 👇 read token path from env
+const TOKEN_PATH = process.env.GOOGLE_TOKENS_PATH;
 
-const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI } = process.env;
+if (!TOKEN_PATH) {
+  throw new Error('GOOGLE_TOKENS_PATH is not set');
+}
+
+const {
+  GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET,
+  GOOGLE_REDIRECT_URI,
+} = process.env;
+
+if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_REDIRECT_URI) {
+  throw new Error('Missing Google OAuth environment variables');
+}
 
 const oauth2Client = new google.auth.OAuth2(
   GOOGLE_CLIENT_ID,
@@ -17,11 +30,18 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 try {
-  const tokens = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
+  const tokens = JSON.parse(
+    fs.readFileSync(
+      path.isAbsolute(TOKEN_PATH)
+        ? TOKEN_PATH
+        : path.resolve(__dirname, '..', TOKEN_PATH),
+      'utf8'
+    )
+  );
   oauth2Client.setCredentials(tokens);
 } catch (error) {
-  console.error('Error loading tokens.json:', error);
-  console.log('Please ensure tokens.json exists and is valid.');
+  console.error('Error loading Google OAuth tokens:', error.message);
+  console.log('Ensure the tokens file exists and is valid.');
 }
 
 const gmail = google.gmail({ version: 'v1', auth: oauth2Client });

@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import 'dotenv/config'
 
 import candidateRoutes from "./routes/candidateRoutes.js";
 import chatbotRoutes from "./routes/chatbotRoutes.js";

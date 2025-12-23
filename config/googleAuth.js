@@ -1,17 +1,24 @@
 import { google } from "googleapis";
 import path from "path";
+import { fileURLToPath } from "url";
 
-const SERVICE_ACCOUNT_PATH = path.resolve(
-  "/etc/secrets/service-account.json"
-);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// 🔐 Domain-Wide Delegation Auth
+const SERVICE_ACCOUNT_PATH = process.env.GOOGLE_SERVICE_ACCOUNT_PATH;
+
+if (!SERVICE_ACCOUNT_PATH) {
+  throw new Error("GOOGLE_SERVICE_ACCOUNT_PATH is not set");
+}
+
 export const googleAuth = new google.auth.JWT({
-  keyFile: SERVICE_ACCOUNT_PATH,
+  keyFile: path.isAbsolute(SERVICE_ACCOUNT_PATH)
+    ? SERVICE_ACCOUNT_PATH
+    : path.resolve(__dirname, "..", SERVICE_ACCOUNT_PATH),
   scopes: [
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/drive",
-    "https://www.googleapis.com/auth/spreadsheets"
+    "https://www.googleapis.com/auth/spreadsheets",
   ],
-  subject: "day1ai@mainstreamtek.com" // Workspace user
+  subject: "day1ai@mainstreamtek.com", // Workspace user
 });
