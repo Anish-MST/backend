@@ -96,12 +96,6 @@ Current Notice period:
       <p style="margin-top:25px; line-height:1.6;">
         Please note: This is a <strong>provisional offer</strong> and does not constitute a formal employment contract.
       </p>
-
-      <p style="margin-top:30px;">
-        Regards,<br/>
-        <strong>HR Team</strong><br/>
-        Your Company
-      </p>
     </div>
   </body>
   </html>

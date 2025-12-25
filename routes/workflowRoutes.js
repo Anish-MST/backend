@@ -2,19 +2,16 @@ import express from "express";
 import * as driveService from "../services/driveService.js";
 import * as firestoreService from "../services/firestoreService.js";
 import * as gmailService from "../services/gmailService.js";
-import { requestCandidateDocuments, sendFormalOfferAndDocRequest } from "../services/workflowService.js";
+import { sendFormalOfferAndDocRequest } from "../services/workflowService.js";
 
 const router = express.Router();
 
-/**
- * Default document status schema
- */
+// 3. Removed Passbook from schema
 const INITIAL_DOC_STATUS = {
   aadhaar: { name: "Aadhaar Card", uploaded: false, verified: false, specialApproval: false },
   pan: { name: "PAN Card", uploaded: false, verified: false, specialApproval: false },
   education: { name: "Education Certificate", uploaded: false, verified: false, specialApproval: false },
-  photo: { name: "Passport Photo", uploaded: false, verified: false, specialApproval: false },
-  passbook: { name: "Passbook Photo", uploaded: false, verified: false, specialApproval: false }
+  photo: { name: "Passport Photo", uploaded: false, verified: false, specialApproval: false }
 };
 
 /**
@@ -107,7 +104,6 @@ router.post("/resend-mail", async (req, res) => {
  */
 router.post("/sync-drive-state", async (req, res) => {
   const { candidateId } = req.body;
-  
   try {
     const candidate = await firestoreService.getCandidate(candidateId);
     if (!candidate.driveFolderId) return res.status(400).json({ error: "No drive folder assigned" });
@@ -115,15 +111,14 @@ router.post("/sync-drive-state", async (req, res) => {
     const driveFiles = await driveService.listPdfFiles(candidate.driveFolderId);
     const docStatus = candidate.docStatus || JSON.parse(JSON.stringify(INITIAL_DOC_STATUS));
     
+    // 3. Removed Passbook from keywords
     const DOC_KEYWORDS = {
       aadhaar: ["aadhaar", "adhar", "uid"],
       pan: ["pan", "pancard"],
       education: ["education", "degree", "mark", "certificate"],
-      photo: ["photo", "passport", "selfie"],
-      passbook: ["passbook", "bank", "cheque"]
+      photo: ["photo", "passport", "selfie"]
     };
 
-    // Auto-detect files based on keywords
     Object.keys(DOC_KEYWORDS).forEach(key => {
       const exists = driveFiles.some(file => 
         DOC_KEYWORDS[key].some(k => file.name.toLowerCase().includes(k))
@@ -136,11 +131,54 @@ router.post("/sync-drive-state", async (req, res) => {
 
     res.json({ success: true, docStatus, files: driveFiles });
   } catch (err) {
-    console.error("❌ Sync error:", err);
     res.status(500).json({ error: "Failed to sync drive" });
   }
 });
+/**
+ * 5. POST /release-offer-letter
+ * Scans drive for MST Offer Letter & Agreement and sends them to candidate.
+ */
+router.post("/release-offer-letter", async (req, res) => {
+  const { candidateId } = req.body;
+  try {
+    const candidate = await firestoreService.getCandidate(candidateId);
+    if (!candidate.driveFolderId) return res.status(400).json({ error: "No Drive folder assigned" });
 
+    const files = await driveService.listPdfFiles(candidate.driveFolderId);
+    
+    // Naming logic: Search for suffixes
+    const offerLetterFile = files.find(f => f.name.includes("_Offer_Letter_MST"));
+    const agreementFile = files.find(f => f.name.includes("_EMPLOYMENT_AGREEMENT_MST"));
+
+    if (!offerLetterFile) {
+      return res.status(404).json({ error: "No offer letter found with MST naming convention." });
+    }
+
+    const attachments = [];
+    const offerBuffer = await driveService.downloadFileAsBuffer(offerLetterFile.id);
+    attachments.push({ name: offerLetterFile.name, buffer: offerBuffer });
+
+    if (agreementFile) {
+      const agreementBuffer = await driveService.downloadFileAsBuffer(agreementFile.id);
+      attachments.push({ name: agreementFile.name, buffer: agreementBuffer });
+    }
+
+    await gmailService.sendMailWithAttachments({
+      to: candidate.email,
+      subject: `Official Offer Documents - ${candidate.name}`,
+      body: `Dear ${candidate.name},\n\nPlease find your Official Offer Letter and Employment Agreement attached.`,
+      attachments
+    });
+
+    await firestoreService.updateCandidate(candidateId, { status: "Offer Released" });
+    await firestoreService.addLog(candidateId, "Official Offer & Agreement Released by HR");
+
+    res.json({ success: true, message: "Offer letter and documents released successfully!" });
+  } catch (err) {
+    console.error("Release error:", err);
+    res.status(500).json({ error: "Failed to release offer documents." });
+  }
+});
 /**
  * 🚀 POST /finalize-onboarding
  * Moves candidate to the final status

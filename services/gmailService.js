@@ -1,30 +1,31 @@
 import { google } from "googleapis";
 import { googleAuth } from "../config/googleAuth.js";
-
 import { geminiGenerateReply } from "./geminiService.js";
 import * as firestoreService from "./firestoreService.js";
 import * as sheetsService from "./sheetsService.js";
 import { requestCandidateDocuments, sendFormalOfferAndDocRequest } from "./workflowService.js";
 
 /**
- * Gmail API client (Service Account + Domain-Wide Delegation)
- * Acts as the impersonated Workspace user
+ * Gmail API client
  */
-const gmail = google.gmail({
-  version: "v1",
-  auth: googleAuth
-});
+const gmail = google.gmail({ version: "v1", auth: googleAuth });
 
 /**
- * Extract email address from "From" header
+ * 1. CC Placeholder for HR/Admin
  */
-function extractEmailAddress(raw) {
-  const match = raw?.match(/<(.+)>/);
-  return match ? match[1] : raw;
-}
+const CC_EMAILS = "anish@mainstreamtek.com";
 
 /**
- * Keywords fallback for offer acceptance
+ * 4. Custom Signature
+ */
+const SIGNATURE = `
+
+Thanks & regards,
+Day1AI 
+A Mainstreamtek Agentic AI initiative | Designed to think. Built to act.`;
+
+/**
+ * Keywords to detect acceptance in candidate replies
  */
 const ACCEPTANCE_KEYWORDS = [
   "i accept",
@@ -38,7 +39,15 @@ const ACCEPTANCE_KEYWORDS = [
 ];
 
 /**
- * Recursively extract full email body (text/plain preferred)
+ * Helper: Extract email address from "From" header (e.g. "John <john@gmail.com>" -> "john@gmail.com")
+ */
+function extractEmailAddress(raw) {
+  const match = raw?.match(/<(.+)>/);
+  return match ? match[1] : raw;
+}
+
+/**
+ * Helper: Recursively extract full email body (text/plain preferred)
  */
 function getEmailBody(payload) {
   if (!payload) return "";
@@ -60,22 +69,22 @@ function getEmailBody(payload) {
 }
 
 /**
- * Send plain or HTML email
+ * Send plain or HTML email (With CC and Signature)
  */
-export async function sendMail({ to, subject, text, html }) {
-  const contentType = html
-    ? 'Content-Type: text/html; charset="UTF-8"'
-    : 'Content-Type: text/plain; charset="UTF-8"';
-
-  const body = html || text || "";
+export async function sendMail({ to, subject, text, html, skipCc = false }) {
+  const bodyWithSig = (html || text || "") + 
+    (html ? `<br><br>${SIGNATURE.replace(/\n/g, '<br>')}` : `\n\n${SIGNATURE}`);
+  
+  const contentType = html ? 'text/html' : 'text/plain';
 
   const messageParts = [
     `To: ${to}`,
+    ...(!skipCc ? [`Cc: ${CC_EMAILS}`] : []),
     `Subject: ${subject}`,
     "MIME-Version: 1.0",
-    contentType,
+    `Content-Type: ${contentType}; charset="UTF-8"`,
     "",
-    body
+    bodyWithSig
   ];
 
   const raw = Buffer.from(messageParts.join("\n"))
@@ -91,37 +100,39 @@ export async function sendMail({ to, subject, text, html }) {
 }
 
 /**
- * Send email with PDF attachment
+ * Send email with multiple PDF attachments (Used for Release Offer Letter)
  */
-export async function sendMailWithAttachment({
-  to,
-  subject,
-  body,
-  attachmentBuffer,
-  attachmentName
-}) {
-  const fileBase64 = attachmentBuffer.toString("base64");
+export async function sendMailWithAttachments({ to, subject, body, attachments }) {
+  const boundary = "foo_bar_baz";
+  const bodyWithSig = body + `\n\n${SIGNATURE}`;
 
-  const messageParts = [
+  let messageParts = [
     `To: ${to}`,
+    `Cc: ${CC_EMAILS}`,
     `Subject: ${subject}`,
     "MIME-Version: 1.0",
-    'Content-Type: multipart/mixed; boundary="foo_bar_baz"',
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
     "",
-    "--foo_bar_baz",
+    `--${boundary}`,
     'Content-Type: text/plain; charset="UTF-8"',
     "",
-    body,
-    "",
-    "--foo_bar_baz",
-    `Content-Type: application/pdf; name="${attachmentName}"`,
-    "Content-Transfer-Encoding: base64",
-    `Content-Disposition: attachment; filename="${attachmentName}"`,
-    "",
-    fileBase64,
-    "",
-    "--foo_bar_baz--"
+    bodyWithSig,
+    ""
   ];
+
+  attachments.forEach(att => {
+    messageParts.push(
+      `--${boundary}`,
+      `Content-Type: application/pdf; name="${att.name}"`,
+      "Content-Transfer-Encoding: base64",
+      `Content-Disposition: attachment; filename="${att.name}"`,
+      "",
+      att.buffer.toString("base64"),
+      ""
+    );
+  });
+
+  messageParts.push(`--${boundary}--`);
 
   const raw = Buffer.from(messageParts.join("\n"))
     .toString("base64")
@@ -136,7 +147,19 @@ export async function sendMailWithAttachment({
 }
 
 /**
- * Fetch unread emails
+ * Legacy wrapper for single attachment
+ */
+export async function sendMailWithAttachment({ to, subject, body, attachmentBuffer, attachmentName }) {
+  return sendMailWithAttachments({
+    to,
+    subject,
+    body,
+    attachments: [{ name: attachmentName, buffer: attachmentBuffer }]
+  });
+}
+
+/**
+ * Fetch unread emails from Inbox
  */
 async function getUnreadMails() {
   const res = await gmail.users.messages.list({
@@ -169,21 +192,21 @@ async function getUnreadMails() {
 }
 
 /**
- * Reply to an email thread
+ * Reply to an email thread with CC and Signature
  */
 async function replyToMail(mail, body) {
   const to = extractEmailAddress(mail.from);
-  const subject = mail.subject.startsWith("Re:")
-    ? mail.subject
-    : `Re: ${mail.subject}`;
+  const subject = mail.subject.startsWith("Re:") ? mail.subject : `Re: ${mail.subject}`;
+  const bodyWithSig = body + `\n\n${SIGNATURE}`;
 
   const messageParts = [
     `To: ${to}`,
+    `Cc: ${CC_EMAILS}`,
     `Subject: ${subject}`,
     "MIME-Version: 1.0",
     "Content-Type: text/plain; charset=utf-8",
     "",
-    body
+    bodyWithSig
   ];
 
   const raw = Buffer.from(messageParts.join("\n"))
@@ -227,7 +250,7 @@ Email:
 }
 
 /**
- * MAIN LOOP – auto process unread mails
+ * MAIN LOOP – Auto process unread mails
  */
 export async function autoReplyToNewMails() {
   console.log("📨 Checking unread mails...");
@@ -242,6 +265,7 @@ export async function autoReplyToNewMails() {
       let handled = false;
 
       for (const candidate of candidates) {
+        // Case A: Waiting for details after Provisional Offer
         if (candidate.offerReplyStatus === "pending") {
           const extracted = await extractCandidateDetailsAI(emailBody);
 
@@ -253,10 +277,8 @@ export async function autoReplyToNewMails() {
               dateOfJoining: extracted.dateOfJoining
             });
 
-            await sheetsService.appendCandidateToSheet(auth, {
-              ...candidate,
-              parsedDetails: extracted
-            });
+            // Note: sheetsService requires global auth context if used here
+            // await sheetsService.appendCandidateToSheet(candidate);
 
             await sendFormalOfferAndDocRequest(candidate.id, candidate);
             handled = true;
@@ -265,17 +287,19 @@ export async function autoReplyToNewMails() {
         }
       }
 
-      if (!handled) {
+      // Case B: General acceptance check
+      if (!handled && candidates.length > 0) {
         const isAccepting = ACCEPTANCE_KEYWORDS.some(k =>
           emailBody.toLowerCase().includes(k)
         );
 
-        if (isAccepting && candidates.length) {
+        if (isAccepting) {
           await requestCandidateDocuments(candidates[0].id, candidates[0]);
           handled = true;
         }
       }
 
+      // Case C: Standard AI Chat/Reply
       if (!handled) {
         const aiReply = await geminiGenerateReply(
           fromEmail,
@@ -285,6 +309,7 @@ export async function autoReplyToNewMails() {
         if (aiReply) await replyToMail(mail, aiReply);
       }
 
+      // Mark as Read
       await gmail.users.messages.modify({
         userId: "me",
         id: mail.id,

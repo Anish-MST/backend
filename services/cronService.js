@@ -17,12 +17,19 @@ const EMAIL_RETRY_HOURS = 0;
 // const CRON_SCHEDULE = "0 */4 * * *";
 // const EMAIL_RETRY_HOURS = 24;
 
+const SIGNATURE_HTML = `
+  <br><br>
+  <p style="margin:0; color: #333;">Thanks & regards,</p>
+  <p style="margin:0; font-weight: bold; color: #1e40af;">Day1AI</p>
+  <p style="margin:0; font-size: 12px; color: #666;">A Mainstreamtek Agentic AI initiative | Designed to think. Built to act.</p>
+`;
+
+// 3. Removed Passbook
 const REQUIRED_DOCS_CONFIG = {
   aadhaar: { name: "Aadhaar Card", keys: ["aadhaar", "adhar", "uid"] },
   pan: { name: "PAN Card", keys: ["pan", "pancard"] },
   education: { name: "Education Certificate", keys: ["education", "degree", "certificate", "mark", "10th", "12th", "btech"] },
-  photo: { name: "Passport Photo", keys: ["photo", "passport", "selfie"] },
-  passbook: { name: "Bank Passbook", keys: ["passbook", "bank", "cheque", "statement"] }
+  photo: { name: "Passport Photo", keys: ["photo", "passport", "selfie"] }
 };
 
 /**
@@ -39,18 +46,15 @@ export const initDocumentReminderCron = () => {
     try {
       const candidates = await firestoreService.getAllCandidates();
       
-      // Filter candidates who have a folder and are not yet fully onboarded
       const activeCandidates = candidates.filter(
         c => c.driveFolderId && c.status !== "Onboarded"
       );
 
       for (const candidate of activeCandidates) {
-        // 🛡️ SAFETY CHECK: If email is missing, we cannot process the candidate
         if (!candidate.email) {
-          console.error(`❌ Data Error: Candidate "${candidate.name}" (ID: ${candidate.id}) is missing an email field in Firestore. Skipping...`);
+          console.error(`❌ Data Error: Candidate "${candidate.name}" is missing an email. Skipping...`);
           continue; 
         }
-        
         await processCandidateVerification(candidate);
       }
     } catch (error) {
@@ -68,18 +72,16 @@ export const initDocumentReminderCron = () => {
  */
 async function processCandidateVerification(candidate) {
   try {
-    // 1. Setup docStatus
     let docStatus = candidate.docStatus && Object.keys(candidate.docStatus).length > 0
       ? JSON.parse(JSON.stringify(candidate.docStatus)) 
       : initializeDefaultStatus();
 
-    // 2. Scan Drive for PDFs
+    // driveService.listPdfFiles already handles auto-deletion of non-PDFs
     const driveFiles = await driveService.listPdfFiles(candidate.driveFolderId);
     
     let hasChanges = false;
     let pendingCount = 0;
 
-    // 3. Update Status
     for (const [key, config] of Object.entries(REQUIRED_DOCS_CONFIG)) {
       const fileFound = driveFiles.some(file => 
         config.keys.some(keyword => file.name.toLowerCase().includes(keyword))
@@ -97,7 +99,6 @@ async function processCandidateVerification(candidate) {
     const newLabel = pendingCount === 0 ? "All Documents Uploaded" : "Documents Pending";
     if (candidate.status !== newLabel) hasChanges = true;
 
-    // 4. Update Firestore if changed
     if (hasChanges) {
       await firestoreService.updateCandidate(candidate.id, {
         docStatus,
@@ -106,7 +107,6 @@ async function processCandidateVerification(candidate) {
       console.log(`✅ Updated status for: ${candidate.name}`);
     }
 
-    // 5. Send Email if documents are missing
     if (pendingCount > 0) {
       const lastSent = candidate.lastDocReminderAt ? new Date(candidate.lastDocReminderAt) : null;
       const hoursSince = lastSent ? (new Date() - lastSent) / (1000 * 60 * 60) : Infinity;
@@ -117,7 +117,7 @@ async function processCandidateVerification(candidate) {
         await firestoreService.updateCandidate(candidate.id, {
           lastDocReminderAt: new Date().toISOString()
         });
-        console.log(`📧 Reminder sent to ${candidate.email}`);
+        console.log(`📧 Reminder sent to ${candidate.email} (No CC)`);
       }
     }
 
@@ -142,6 +142,9 @@ function initializeDefaultStatus() {
 
 async function sendReminderEmail(candidate, docStatus) {
   const rows = Object.values(docStatus).map(doc => {
+    // Only show documents relevant to the current REQUIRED_DOCS_CONFIG
+    if (!REQUIRED_DOCS_CONFIG[Object.keys(docStatus).find(key => docStatus[key].name === doc.name)]) return "";
+    
     let text = doc.verified || doc.specialApproval ? "Approved" : doc.uploaded ? "Uploaded" : "Missing";
     let color = text === "Approved" ? "#059669" : text === "Uploaded" ? "#2563eb" : "#dc2626";
 
@@ -155,28 +158,30 @@ async function sendReminderEmail(candidate, docStatus) {
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 500px; border: 1px solid #eee; padding: 20px;">
-      <h2 style="color: #1e40af;">Pending Documents</h2>
+      <h2 style="color: #1e40af;">Action Required: Missing Documents</h2>
       <p>Hi ${candidate.name},</p>
-      <p>Please upload the following missing documents to your folder:</p>
+      <p>Our system has detected that some of your onboarding documents are still missing or require attention:</p>
       <table style="width: 100%; border-collapse: collapse;">
         ${rows}
       </table>
       <div style="margin-top: 25px; background: #f0f7ff; padding: 15px; border-radius: 5px;">
-        <p style="margin:0;"><strong>Access Info:</strong></p>
-        <p style="margin:5px 0; font-size: 14px;">You must be logged into Google as <strong>${candidate.email}</strong> to access the folder.</p>
+        <p style="margin:0; font-size: 14px;">Please upload the missing PDF files to your personal folder.</p>
         <div style="text-align: center; margin-top: 15px;">
           <a href="https://drive.google.com/drive/folders/${candidate.driveFolderId}" 
              style="background: #2563eb; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-             Open Folder
+             Open Drive Folder
           </a>
         </div>
       </div>
+      ${SIGNATURE_HTML}
     </div>
   `;
 
+  // skipCc: true ensures this specific automated mail doesn't spam the HR CC list
   await gmailService.sendMail({
     to: candidate.email,
     subject: "Action Required: Onboarding Documents",
-    html
+    html,
+    skipCc: true 
   });
 }
