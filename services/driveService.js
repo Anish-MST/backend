@@ -57,8 +57,6 @@ async function cleanNonPdfFiles(folderId) {
 export async function listPdfFiles(folderId) {
   try {
     // 1. Attempt to clean up non-PDFs (jpg, png, etc.)
-    await cleanNonPdfFiles(folderId);
-
     // 2. Fetch the list of remaining PDF files
     const res = await drive.files.list({
       q: `'${folderId}' in parents and mimeType='application/pdf' and trashed=false`,
