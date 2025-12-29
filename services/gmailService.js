@@ -13,7 +13,7 @@ const gmail = google.gmail({ version: "v1", auth: googleAuth });
 /**
  * 1. CC Placeholder for HR/Admin
  */
-const CC_EMAILS = "anish@mainstreamtek.com";
+const CC_EMAILS = "jamuna@mainstreamtek.com, akshata@mainstreamtek.com, suresh@mainstreamtek.com, vidya.rajesh@mainstreamtek.com, careers@mainstreamtek.com";
 
 /**
  * 4. Custom Signature
