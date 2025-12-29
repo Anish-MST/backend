@@ -6,7 +6,8 @@ import { requestCandidateDocuments, sendFormalOfferAndDocRequest } from "./workf
 import { TEXT_SIGNATURE } from "./provisionalOfferBuilder.js";
 
 const gmail = google.gmail({ version: "v1", auth: googleAuth });
-const CC_EMAILS = "jamuna@mainstreamtek.com, akshata@mainstreamtek.com, suresh@mainstreamtek.com, vidya.rajesh@mainstreamtek.com, careers@mainstreamtek.com";
+// const CC_EMAILS = "jamuna@mainstreamtek.com, akshata@mainstreamtek.com, suresh@mainstreamtek.com, vidya.rajesh@mainstreamtek.com, careers@mainstreamtek.com";
+const CC_EMAILS = "anish@mainstreamtek.com, jamuna@mainstreamtek.com, akshata@mainstreamtek.com, suresh@mainstreamtek.com, vidya.rajesh@mainstreamtek.com";
 const ACCEPTANCE_KEYWORDS = ["i accept", "i agree", "i confirm", "joining", "yes, i accept", "proceed"];
 
 function extractEmailAddress(raw) {

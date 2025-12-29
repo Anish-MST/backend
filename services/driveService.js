@@ -91,56 +91,46 @@ export async function downloadFileAsBuffer(fileId) {
  * @param {string} writerName - The HR/Admin creating this
  * @param {string} candidateEmail - The email to grant access to
  */
-export async function createCandidateFolder(candidateId, candidateName, writerName, candidateEmail) {
-  // 1. Validate Input to prevent 'undefined' errors
-  if (!candidateEmail || !candidateEmail.includes("@")) {
-    console.error(`❌ Drive Service: Cannot process folder for "${candidateName}". Invalid email: ${candidateEmail}`);
-    return null;
-  }
+/**
+ * driveService.js
+ */
+export async function createCandidateFolder(candidateId, candidateName, adminUser, candidateEmail) {
+  const drive = google.drive({ version: "v3", auth: googleAuth });
 
-  const safeCandidate = candidateName.trim().replace(/\s+/g, "_");
-  const folderName = `${candidateId}_${safeCandidate}`;
+  // 1. Create the Folder
+  const folderMetadata = {
+    name: `Onboarding - ${candidateName}`,
+    mimeType: "application/vnd.google-apps.folder",
+  };
 
-  let folderId;
+  const folder = await drive.files.create({
+    resource: folderMetadata,
+    fields: "id, webViewLink",
+  });
 
-  try {
-    // 2. Search for existing folder by name containing candidateId
-    const searchRes = await drive.files.list({
-      q: `mimeType='application/vnd.google-apps.folder' and name contains '${candidateId}' and trashed=false`,
-      fields: "files(id, webViewLink)",
-      spaces: "drive"
-    });
+  const folderId = folder.data.id;
 
-    if (searchRes.data.files?.length > 0) {
-      folderId = searchRes.data.files[0].id;
-    } else {
-      // 3. Create folder if it doesn't exist
-      const folderRes = await drive.files.create({
-        requestBody: {
-          name: folderName,
-          mimeType: "application/vnd.google-apps.folder"
-        },
-        fields: "id"
-      });
-      folderId = folderRes.data.id;
-    }
+  // 2. GRANT EDIT ACCESS TO JAMUNA (HR)
+  await drive.permissions.create({
+    fileId: folderId,
+    requestBody: {
+      role: "writer", // Editor access
+      type: "user",
+      emailAddress: "jamuna@mainstreamtek.com",
+    },
+  });
 
-    // 4. FORCE SHARE ACCESS (Fixes "Request Access" issues)
-    // We call this even if folder exists to ensure permissions are correct
-    await grantFolderAccess(folderId, candidateEmail);
+  // 3. (Optional) Grant View access to the Candidate
+  await drive.permissions.create({
+    fileId: folderId,
+    requestBody: {
+      role: "writer", // Candidate also needs to upload
+      type: "user",
+      emailAddress: candidateEmail,
+    },
+  });
 
-    // 5. Get the final link
-    const finalData = await drive.files.get({
-      fileId: folderId,
-      fields: "id, webViewLink"
-    });
-
-    return finalData.data;
-
-  } catch (error) {
-    console.error(`❌ Drive Service Error for ${candidateName}:`, error.message);
-    throw error;
-  }
+  return { id: folderId, webViewLink: folder.data.webViewLink };
 }
 
 /**

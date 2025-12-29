@@ -1,8 +1,11 @@
 import * as firestoreService from './firestoreService.js';
 import * as gmailService from './gmailService.js';
 import * as driveService from './driveService.js';
-import { buildProvisionalOfferEmail } from './provisionalOfferBuilder.js';
-import { buildDocumentReminderHtml } from './cronService.js'; // Ensure this is exported from reminderCron.js
+import { 
+  buildProvisionalOfferEmail, 
+  buildHRNotificationHtml, 
+  buildCandidateDashboardHtml 
+} from './provisionalOfferBuilder.js';
 import * as pdfService from './pdfService.js';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -39,16 +42,17 @@ export const sendProvisionalOffer = async (candidateId, candidate) => {
   }
 };
 
-// 3. Document Request Wrapper
+// 3. Document Request Wrapper (Triggered on acceptance)
 export const requestCandidateDocuments = async (candidateId, candidate) => {
   await sendFormalOfferAndDocRequest(candidateId, candidate);
 };
 
-// 4. Send Doc Request (Initial)
 /**
- * FIX: 
- * 1. Uses the professional HTML template instead of plain text.
- * 2. Updates Firestore timestamp BEFORE sending to lock out the Cron job.
+ * 4. PHASE 1: Notify HR (Jamuna) to drop the NDA
+ * Instead of emailing the candidate, we notify HR and wait.
+ */
+/**
+ * workflowService.js
  */
 export const sendFormalOfferAndDocRequest = async (candidateId, candidate) => {
   try {
@@ -57,53 +61,51 @@ export const sendFormalOfferAndDocRequest = async (candidateId, candidate) => {
     let webViewLink = candidate.driveFolderWebViewLink;
     let folderId = candidate.driveFolderId;
 
-    // Resolve Drive Folder
+    // 1. Resolve Drive Folder & Permissions
     if (!webViewLink) {
-      const folder = await driveService.createCandidateFolder(candidateId, candidate.name, "System_Admin", candidate.email);
+      // This call now internally grants Jamuna 'Writer' access
+      const folder = await driveService.createCandidateFolder(
+        candidateId, 
+        candidate.name, 
+        "System_Admin", 
+        candidate.email
+      );
       folderId = folder.id;
       webViewLink = folder.webViewLink;
     }
 
-    // Prepare Initial Document Status (All false)
-    const initialDocStatus = {
-      aadhaar: { name: "Aadhaar Card", uploaded: false, verified: false, specialApproval: false },
-      pan: { name: "PAN Card", uploaded: false, verified: false, specialApproval: false },
-      education: { name: "Education Certificate", uploaded: false, verified: false, specialApproval: false },
-      photo: { name: "Passport Photo", uploaded: false, verified: false, specialApproval: false }
-    };
-
-    // --- CRITICAL FIX: UPDATE DB BEFORE SENDING MAIL ---
-    // We set docStatus and lastDocReminderAt NOW so the Cron job immediately skips this candidate.
+    // 2. LOCK DB STATUS: Move to "Waiting for HR NDA"
     await firestoreService.updateCandidate(candidateId, {
       driveFolderId: folderId,
       driveFolderWebViewLink: webViewLink,
-      status: "Details Received / Docs Pending",
-      docStatus: initialDocStatus,
-      lastDocReminderAt: new Date().toISOString() 
+      status: "Waiting for HR NDA"
     });
 
-    // Generate professional HTML (Shared with Cron Job)
-    const htmlBody = buildDocumentReminderHtml(
-      { ...candidate, driveFolderId: folderId }, 
-      initialDocStatus
-    );
+    // 3. Notify Jamuna
+    // Since she now has 'Edit' access, she can simply click the link and drop the file.
+    const hrHtml = buildHRNotificationHtml({
+      ...candidate,
+      driveFolderWebViewLink: webViewLink
+    });
 
-    // Send the HTML Mail
     await gmailService.sendMail({
-      to: candidate.email,
-      subject: "Action Required: Document Submission - Mainstreamtek",
-      html: htmlBody
+      to: "jamuna@mainstreamtek.com",
+      subject: `Action Required: Upload NDA for ${candidate.name} - Mainstreamtek`,
+      html: hrHtml,
+      skipCc: true 
     });
 
-    await firestoreService.addLog(candidateId, "Initial HTML document request sent.");
+    await firestoreService.addLog(candidateId, "Edit access granted to Jamuna. HR Notification sent.");
 
   } catch (error) {
-    console.error("❌ Error in document request workflow:", error);
+    console.error("❌ Error in HR notification workflow:", error);
     await firestoreService.addLog(candidateId, `Workflow Error: ${error.message}`);
   }
 };
 
-// 5. Resend Mail
+/**
+ * 5. Resend Mail
+ */
 export const resendMail = async (candidateId, mailNumber) => {
   const candidate = await firestoreService.getCandidate(candidateId);
   if (!candidate) return { success: false, message: "Candidate not found" };
@@ -121,19 +123,31 @@ export const resendMail = async (candidateId, mailNumber) => {
         break;
 
       case 2:
-        // Update timestamp first to prevent Cron interference
-        await firestoreService.updateCandidate(candidateId, { 
-          lastDocReminderAt: new Date().toISOString() 
-        });
-
-        // Use HTML builder for resends to maintain professional look
-        const htmlReminder = buildDocumentReminderHtml(candidate, candidate.docStatus);
-
-        await gmailService.sendMail({ 
-          to: candidate.email, 
-          subject: "Reminder: Document Submission - Mainstreamtek", 
-          html: htmlReminder 
-        });
+        // Reminder logic for Case 2 (Document Submission)
+        if (candidate.status === "Waiting for HR NDA") {
+           // Resend notification to HR
+           const hrHtml = buildHRNotificationHtml(candidate);
+           await gmailService.sendMail({
+             to: "jamuna@mainstreamtek.com",
+             subject: `REMINDER: Drop NDA for ${candidate.name}`,
+             html: hrHtml,
+             skipCc: true
+           });
+           await firestoreService.addLog(candidateId, "Resent NDA upload reminder to HR.");
+        } else if (candidate.status === "NDA & Docs Pending") {
+          // Resend Dashboard to Candidate
+          await firestoreService.updateCandidate(candidateId, { 
+            lastDocReminderAt: new Date().toISOString() 
+          });
+          const htmlReminder = buildCandidateDashboardHtml(candidate, candidate.docStatus);
+          await gmailService.sendMail({ 
+            to: candidate.email, 
+            subject: "Reminder: Onboarding Documents - Mainstreamtek", 
+            html: htmlReminder,
+            skipCc: true
+          });
+          await firestoreService.addLog(candidateId, "Resent document dashboard to candidate.");
+        }
         break;
 
       case 3:

@@ -87,3 +87,75 @@ export function buildProvisionalOfferEmail(candidate) {
   </html>
   `;
 }
+/**
+ * 1. INTERNAL: Sent to Jamuna@mainstreamtek.com
+ */
+export function buildHRNotificationHtml(candidate) {
+  return `
+    <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px;">
+      <h2 style="color: #1A73E8;">Action Required: Upload NDA</h2>
+      <p>Hi Jamuna,</p>
+      <p>The candidate <b>${candidate.name}</b> has accepted the provisional offer for the role of <b>${candidate.role || 'Software Engineer'}</b>.</p>
+      
+      <div style="background: #f1f8ff; padding: 20px; border-radius: 8px; border-left: 4px solid #1A73E8; margin: 20px 0;">
+        <p style="margin: 0;"><strong>Next Step:</strong> Please drop the unsigned NDA PDF into the candidate's folder.</p>
+        <p style="margin: 10px 0 0 0;">Once the file is detected, the system will automatically notify the candidate to begin document submission.</p>
+      </div>
+
+      <div style="text-align: center; margin-top: 25px;">
+        <a href="${candidate.driveFolderWebViewLink}" 
+           style="background: #1A73E8; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+           Open Candidate Drive Folder
+        </a>
+      </div>
+      ${HTML_SIGNATURE}
+    </div>
+  `;
+}
+
+/**
+ * 2. CANDIDATE: The Document Dashboard
+ */
+export function buildCandidateDashboardHtml(candidate, docStatus) {
+  const rows = Object.values(docStatus).map(doc => {
+    let statusText = doc.verified ? "Approved" : doc.uploaded ? "Uploaded" : "Missing";
+    let color = statusText === "Approved" ? "#059669" : statusText === "Uploaded" ? "#2563eb" : "#dc2626";
+    return `
+      <tr>
+        <td style="padding:12px; border-bottom:1px solid #eee; color: #555;">${doc.name}</td>
+        <td style="padding:12px; border-bottom:1px solid #eee; text-align:right; color:${color}; font-weight:bold;">${statusText}</td>
+      </tr>`;
+  }).join("");
+
+  return `
+    <div style="font-family: Arial, sans-serif; background: #f7f9fb; padding: 20px;">
+      <div style="max-width: 600px; margin: auto; background: #ffffff; padding: 30px; border-radius: 10px; border: 1px solid #eee; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+        <h2 style="color: #1A73E8; margin-top: 0;">Onboarding Document Submission</h2>
+        <p>Dear ${candidate.name},</p>
+        <p>We have placed your <b>NDA</b> in the secure folder. Please follow these instructions carefully:</p>
+        
+        <ul style="color: #555; line-height: 1.6;">
+          <li>Download the <b>NDA</b> from the folder link below.</li>
+          <li>Print, sign, and scan it back as a PDF.</li>
+          <li style="color: #d97706; font-weight: bold;">⚠️ Important: Save your signed copy as "Signed NDA"</li>
+          <li>Upload the <b>Signed NDA</b> and your other documents listed below.</li>
+        </ul>
+
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+          <tr style="background: #f1f8ff;">
+            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #1A73E8;">Required Document</th>
+            <th style="padding: 12px; text-align: right; border-bottom: 2px solid #1A73E8;">Status</th>
+          </tr>
+          ${rows}
+        </table>
+
+        <div style="margin-top: 25px; background: #fff3cd; padding: 20px; border-radius: 6px; border: 1px solid #ffeeba; text-align: center;">
+          <a href="${candidate.driveFolderWebViewLink}" 
+             style="display: inline-block; background: #1A73E8; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+             Access Your Secure Folder
+          </a>
+        </div>
+        ${HTML_SIGNATURE}
+      </div>
+    </div>`;
+}
