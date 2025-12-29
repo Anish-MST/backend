@@ -123,28 +123,66 @@ export function buildCandidateDashboardHtml(candidate, docStatus) {
     return `
       <tr>
         <td style="padding:12px; border-bottom:1px solid #eee; color: #555;">${doc.name}</td>
-        <td style="padding:12px; border-bottom:1px solid #eee; text-align:right; color:${color}; font-weight:bold;">${statusText}</td>
+        <td style="padding:12px; border-bottom:1px solid #eee; text-align:right; color:${color}; font-weight:bold;">
+          ${statusText}
+        </td>
       </tr>`;
   }).join("");
 
   return `
     <div style="font-family: Arial, sans-serif; background: #f7f9fb; padding: 20px;">
       <div style="max-width: 600px; margin: auto; background: #ffffff; padding: 30px; border-radius: 10px; border: 1px solid #eee; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+
         <h2 style="color: #1A73E8; margin-top: 0;">Onboarding Document Submission</h2>
+
         <p>Dear ${candidate.name},</p>
-        <p>We have placed your <b>NDA</b> in the secure folder. Please follow these instructions carefully:</p>
+
+        <p>
+          We have placed your <b>NDA</b> in the secure folder. Please follow the instructions below carefully.
+          Incorrect file format or file name may result in rejection.
+        </p>
         
         <ul style="color: #555; line-height: 1.6;">
-          <li>Download the <b>NDA</b> from the folder link below.</li>
-          <li>Print, sign, and scan it back as a PDF.</li>
-          <li style="color: #d97706; font-weight: bold;">⚠️ Important: Save your signed copy as "Signed NDA"</li>
-          <li>Upload the <b>Signed NDA</b> and your other documents listed below.</li>
+          <li>Download the <b>NDA</b> from the secure folder.</li>
+          <li>Print, sign, and scan it as a single PDF file.</li>
+          <li style="color: #d97706; font-weight: bold;">
+            ⚠️ File Name Requirement: The signed NDA must be saved <u>exactly</u> as 
+            <b>"Signed NDA.pdf"</b> (case-sensitive, no extra words).
+          </li>
+          <li>Upload the correctly named <b>Signed NDA.pdf</b> along with the other required documents.</li>
         </ul>
+
+        <div style="margin: 20px 0; background: #f8fafc; padding: 15px; border-left: 4px solid #1A73E8;">
+          <p style="margin: 0; color: #444; font-weight: bold;">
+            Mandatory Verification Guidelines:
+          </p>
+          <ul style="margin: 10px 0 0; color: #555; line-height: 1.6;">
+            <li>
+              <b>The name on your Aadhaar and PAN must be exactly the same.</b>
+              Any mismatch (including spelling, initials, or spacing) will lead to rejection.
+            </li>
+            <li>
+              If there is any mismatch or correction required, please email 
+              <b>jamuna@mainstreamtek.com</b> before uploading your documents.
+            </li>
+            <li><b>Only PDF files are accepted.</b></li>
+            <li>
+              File names must match the required document name exactly 
+              (no prefixes, suffixes, or special characters).
+            </li>
+            <li>Uploaded PDFs must be clear, readable, and not password-protected.</li>
+            <li>Ensure all documents belong to you and are valid.</li>
+          </ul>
+        </div>
 
         <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
           <tr style="background: #f1f8ff;">
-            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #1A73E8;">Required Document</th>
-            <th style="padding: 12px; text-align: right; border-bottom: 2px solid #1A73E8;">Status</th>
+            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #1A73E8;">
+              Required Document
+            </th>
+            <th style="padding: 12px; text-align: right; border-bottom: 2px solid #1A73E8;">
+              Status
+            </th>
           </tr>
           ${rows}
         </table>
@@ -155,6 +193,7 @@ export function buildCandidateDashboardHtml(candidate, docStatus) {
              Access Your Secure Folder
           </a>
         </div>
+
         ${HTML_SIGNATURE}
       </div>
     </div>`;
