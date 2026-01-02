@@ -11,27 +11,28 @@ export const createCandidate = async (candidateData) => {
   const timestamp = admin.firestore.FieldValue.serverTimestamp();
 
   const docRef = await candidatesCollection.add({
+    // Standard data from form
     ...candidateData,
+
+    // Explicit Incentive mapping
+    hasSpecialIncentive: candidateData.hasSpecialIncentive || false,
+    specialIncentiveAmount: candidateData.specialIncentiveAmount || 0,
+    specialIncentiveDetail: candidateData.specialIncentiveDetail || "",
 
     // Timestamps
     createdAt: timestamp,
     updatedAt: timestamp,
 
-    // Workflow
+    // Workflow Defaults
     status: "Initiated",
     offerReplyStatus: "pending",
-
-    // Parsing / AI
     parsedDetails: null,
-
-    // Drive
     driveFolderId: null,
-
-    // Documents
+    driveFolderWebViewLink: null,
     docStatus: null,
-    lastDocReminderAt: null, // 🔥 used by cron to avoid spam
+    lastDocReminderAt: null,
 
-    // Verification
+    // Verification Object
     verification: {
       panStatus: "Pending",
       aadhaarStatus: "Pending",
@@ -50,6 +51,7 @@ export const createCandidate = async (candidateData) => {
   return docRef.id;
 };
 
+
 /**
  * --------------------------------------------------
  * 2. UPDATE CANDIDATE (SAFE MERGE)
@@ -57,15 +59,12 @@ export const createCandidate = async (candidateData) => {
  */
 export const updateCandidate = async (candidateId, data) => {
   const timestamp = admin.firestore.FieldValue.serverTimestamp();
-
   await candidatesCollection.doc(candidateId).set(
-    {
-      ...data,
-      updatedAt: timestamp
-    },
+    { ...data, updatedAt: timestamp },
     { merge: true }
   );
 };
+;
 
 /**
  * --------------------------------------------------
@@ -73,17 +72,12 @@ export const updateCandidate = async (candidateId, data) => {
  * --------------------------------------------------
  */
 export const addLog = async (candidateId, eventMessage) => {
-  const logEntry = {
-    event: eventMessage,
-    timestamp: new Date().toISOString()
-  };
-
+  const logEntry = { event: eventMessage, timestamp: new Date().toISOString() };
   await candidatesCollection.doc(candidateId).update({
     log: admin.firestore.FieldValue.arrayUnion(logEntry),
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   });
 };
-
 /**
  * --------------------------------------------------
  * 4. GET CANDIDATE BY ID
@@ -101,16 +95,9 @@ export const getCandidate = async (candidateId) => {
  * --------------------------------------------------
  */
 export const getAllCandidates = async () => {
-  const snapshot = await candidatesCollection
-    .orderBy("createdAt", "desc")
-    .get();
-
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }));
+  const snapshot = await candidatesCollection.orderBy("createdAt", "desc").get();
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
-
 /**
  * --------------------------------------------------
  * 6. FIND BY NAME
@@ -134,16 +121,9 @@ export const findCandidateByName = async (name) => {
  * --------------------------------------------------
  */
 export const findCandidatesByEmail = async (email) => {
-  const snapshot = await candidatesCollection
-    .where("email", "==", email)
-    .get();
-
+  const snapshot = await candidatesCollection.where("email", "==", email).get();
   if (snapshot.empty) return [];
-
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }));
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
 /**

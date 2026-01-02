@@ -36,12 +36,24 @@ export function buildProvisionalOfferEmail(candidate) {
     const year = date.getFullYear();
     const suffix = (d) => {
       if (d > 3 && d < 21) return "th";
-      switch (d % 10) {
-        case 1: return "st"; case 2: return "nd"; case 3: return "rd"; default: return "th";
-      }
+      switch (d % 10) { case 1: return "st"; case 2: return "nd"; case 3: return "rd"; default: return "th"; }
     };
     return `${day}${suffix(day)} ${month} ${year}`;
   }
+
+  // INCENTIVE SECTION
+  const incentiveHtml = candidate.hasSpecialIncentive ? `
+    <div style="background:#FFF9C4; padding:15px; border-left:4px solid #FBC02D; margin:20px 0; border-radius:5px; border: 1px solid #FBC02D;">
+      <p style="margin:0; font-weight:bold; color:#827717; font-size:14px; text-transform: uppercase;">Special Incentive Offered</p>
+      <p style="margin:8px 0 0 0; color:#333; font-size:16px;">
+        <b>Amount:</b> ₹${fmt(candidate.specialIncentiveAmount)}<br>
+        <b>Type:</b> ${candidate.specialIncentiveDetail}
+      </p>
+      <p style="margin:8px 0 0 0; font-size: 12px; color: #827717; font-style: italic;">
+        *Note: This incentive is separate from the Annual CTC calculations shown above.
+      </p>
+    </div>
+  ` : "";
 
   return `
   <html>
@@ -55,6 +67,8 @@ export function buildProvisionalOfferEmail(candidate) {
         <p style="margin:6px 0;"><strong>Date of Joining:</strong> ${formatDOJ(candidate.dateOfJoining)}</p>
         <p style="margin:6px 0;"><strong>Annual CTC:</strong> ₹${fmt(ctc)}</p>
       </div>
+
+      ${incentiveHtml}
 
       <h3 style="color:#1A73E8; margin-top:30px;">Monthly Salary Structure</h3>
       <table style="width:100%; border-collapse:collapse; margin-bottom:25px;">
@@ -79,27 +93,27 @@ export function buildProvisionalOfferEmail(candidate) {
       </div>
 
       <p style="margin-top:25px; font-size:13px; color:#777;">Note: This is a provisional offer and not a formal contract.</p>
-      
-      <!-- SIGNATURE INSIDE THE BOX -->
       ${HTML_SIGNATURE}
     </div>
   </body>
   </html>
   `;
 }
-/**
- * 1. INTERNAL: Sent to Jamuna@mainstreamtek.com
- */
+
 export function buildHRNotificationHtml(candidate) {
   return `
     <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px;">
-      <h2 style="color: #1A73E8;">Action Required: Upload NDA</h2>
+      <h2 style="color: #1A73E8;">Action Required: Upload NDA Documents</h2>
       <p>Hi Jamuna,</p>
-      <p>The candidate <b>${candidate.name}</b> has accepted the provisional offer for the role of <b>${candidate.role || 'Software Engineer'}</b>.</p>
+      <p>The candidate <b>${candidate.name}</b> has accepted the provisional offer for <b>${candidate.role || 'Software Engineer'}</b>.</p>
       
       <div style="background: #f1f8ff; padding: 20px; border-radius: 8px; border-left: 4px solid #1A73E8; margin: 20px 0;">
-        <p style="margin: 0;"><strong>Next Step:</strong> Please drop the unsigned NDA PDF into the candidate's folder.</p>
-        <p style="margin: 10px 0 0 0;">Once the file is detected, the system will automatically notify the candidate to begin document submission.</p>
+        <p style="margin: 0;"><strong>Next Step:</strong> Please upload the following files to the candidate's folder:</p>
+        <ul style="margin-top: 10px;">
+          <li><b>Unsigned NDA:</b> The blank template for the candidate to sign.</li>
+          <li><b>Sample NDA:</b> A reference PDF showing correctly placed signatures.</li>
+        </ul>
+        <p style="margin: 10px 0 0 0;">The system will automatically notify the candidate once files are detected.</p>
       </div>
 
       <div style="text-align: center; margin-top: 25px;">
@@ -113,9 +127,6 @@ export function buildHRNotificationHtml(candidate) {
   `;
 }
 
-/**
- * 2. CANDIDATE: The Document Dashboard
- */
 export function buildCandidateDashboardHtml(candidate, docStatus) {
   const rows = Object.values(docStatus).map(doc => {
     let statusText = doc.verified ? "Approved" : doc.uploaded ? "Uploaded" : "Missing";
@@ -133,56 +144,37 @@ export function buildCandidateDashboardHtml(candidate, docStatus) {
     <div style="font-family: Arial, sans-serif; background: #f7f9fb; padding: 20px;">
       <div style="max-width: 600px; margin: auto; background: #ffffff; padding: 30px; border-radius: 10px; border: 1px solid #eee; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
 
-        <h2 style="color: #1A73E8; margin-top: 0;">Onboarding Document Submission</h2>
+        <h2 style="color: #1A73E8; margin-top: 0;">Document Submission</h2>
 
         <p>Dear ${candidate.name},</p>
 
         <p>
-          We have placed your <b>NDA</b> in the secure folder. Please follow the instructions below carefully.
-          Incorrect file format or file name may result in rejection.
+          We have provided an <b>Unsigned NDA</b> and a <b>Sample NDA</b> in your secure folder. 
+          Please review the sample carefully before signing.
         </p>
         
         <ul style="color: #555; line-height: 1.6;">
-          <li>Download the <b>NDA</b> from the secure folder.</li>
-          <li>Print, sign, and scan it as a single PDF file.</li>
+          <li>Open the <b>Sample NDA</b> to see how and where to sign.</li>
+          <li>Sign the <b>Unsigned NDA</b> exactly like the sample.</li>
+          <li>Scan and save it <b>only</b> as a PDF file.</li>
           <li style="color: #d97706; font-weight: bold;">
-            ⚠️ File Name Requirement: The signed NDA must be saved <u>exactly</u> as 
-            <b>"Signed NDA.pdf"</b> (case-sensitive, no extra words).
+            ⚠️ Requirement: The file must be named <b>"Signed NDA.pdf"</b>.
           </li>
-          <li>Upload the correctly named <b>Signed NDA.pdf</b> along with the other required documents.</li>
         </ul>
 
         <div style="margin: 20px 0; background: #f8fafc; padding: 15px; border-left: 4px solid #1A73E8;">
-          <p style="margin: 0; color: #444; font-weight: bold;">
-            Mandatory Verification Guidelines:
-          </p>
+          <p style="margin: 0; color: #444; font-weight: bold;">Guidelines:</p>
           <ul style="margin: 10px 0 0; color: #555; line-height: 1.6;">
-            <li>
-              <b>The name on your Aadhaar and PAN must be exactly the same.</b>
-              Any mismatch (including spelling, initials, or spacing) will lead to rejection.
-            </li>
-            <li>
-              If there is any mismatch or correction required, please email 
-              <b>jamuna@mainstreamtek.com</b> before uploading your documents.
-            </li>
-            <li><b>Only PDF files are accepted.</b></li>
-            <li>
-              File names must match the required document name exactly 
-              (no prefixes, suffixes, or special characters).
-            </li>
-            <li>Uploaded PDFs must be clear, readable, and not password-protected.</li>
-            <li>Ensure all documents belong to you and are valid.</li>
+            <li><b>Aadhaar and PAN names must match exactly.</b></li>
+            <li>File names must match the document requirements (e.g. "PAN Card.pdf").</li>
+            <li>No password-protected files.</li>
           </ul>
         </div>
 
         <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
           <tr style="background: #f1f8ff;">
-            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #1A73E8;">
-              Required Document
-            </th>
-            <th style="padding: 12px; text-align: right; border-bottom: 2px solid #1A73E8;">
-              Status
-            </th>
+            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #1A73E8;">Document</th>
+            <th style="padding: 12px; text-align: right; border-bottom: 2px solid #1A73E8;">Status</th>
           </tr>
           ${rows}
         </table>
@@ -190,7 +182,7 @@ export function buildCandidateDashboardHtml(candidate, docStatus) {
         <div style="margin-top: 25px; background: #fff3cd; padding: 20px; border-radius: 6px; border: 1px solid #ffeeba; text-align: center;">
           <a href="${candidate.driveFolderWebViewLink}" 
              style="display: inline-block; background: #1A73E8; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-             Access Your Secure Folder
+             Access Your Folder
           </a>
         </div>
 

@@ -3,14 +3,24 @@ import * as workflowService from '../services/workflowService.js';
 
 export const addCandidate = async (req, res) => {
   try {
-    const { name, email, role, salary, experience, dateOfJoining } = req.body;
+    const { 
+      name, 
+      email, 
+      role, 
+      salary, 
+      experience, 
+      dateOfJoining,
+      hasSpecialIncentive,    // ADDED
+      specialIncentiveAmount, // ADDED
+      specialIncentiveDetail  // ADDED
+    } = req.body;
 
-    // Validate required fields
+    // Validate required base fields
     if (!name || !email || !role || !salary || !experience || !dateOfJoining) {
-      return res.status(400).json({ error: 'All fields are required' });
+      return res.status(400).json({ error: 'All base fields are required' });
     }
 
-    // Prepare candidate data with new fields
+    // Prepare candidate data with ALL fields including incentives
     const candidateData = {
       name,
       email,
@@ -18,6 +28,10 @@ export const addCandidate = async (req, res) => {
       salary,
       experience,
       dateOfJoining,
+      // Ensure boolean and number types are correct
+      hasSpecialIncentive: !!hasSpecialIncentive, 
+      specialIncentiveAmount: Number(specialIncentiveAmount) || 0,
+      specialIncentiveDetail: specialIncentiveDetail || "",
       status: 'Initiated'
     };
 
@@ -30,6 +44,7 @@ export const addCandidate = async (req, res) => {
     });
 
   } catch (error) {
+    console.error("Controller Error:", error.message);
     res.status(500).json({ error: error.message });
   }
 };
