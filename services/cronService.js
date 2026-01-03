@@ -4,7 +4,7 @@ import * as driveService from "./driveService.js";
 import * as gmailService from "./gmailService.js";
 import { buildCandidateDashboardHtml } from "./provisionalOfferBuilder.js";
 
-const CRON_SCHEDULE = "* * * * *"; // Every minute
+const CRON_SCHEDULE = "0 */4 * * *"; // Every 4 hours (at minute 0)
 const RETRY_INTERVAL_MINUTES = 1;
 
 // Config for tracking candidate's uploads
