@@ -9,11 +9,26 @@ const RETRY_INTERVAL_MINUTES = 1;
 
 // Config for tracking candidate's uploads
 const REQUIRED_DOCS_CONFIG = {
-  nda: { name: "Signed NDA", keys: ["signed nda", "signed_nda", "nda_signed"] }, // Specific naming
-  aadhaar: { name: "Aadhaar Card", keys: ["aadhaar", "adhar", "uid"] },
-  pan: { name: "PAN Card", keys: ["pan", "pancard"] },
-  education: { name: "Education Certificate", keys: ["education", "degree", "mark", "btech"] },
-  photo: { name: "Passport Photo", keys: ["photo", "passport", "selfie"] }
+  nda: { 
+    name: "Signed NDA", 
+    keys: ["signed nda", "signed_nda", "nda_signed", "non disclosure", "agreement", "nda", "signed-nda"] 
+  },
+  aadhaar: { 
+    name: "Aadhaar Card", 
+    keys: ["aadhaar", "adhar", "uid", "aadhar card", "national id", "uidai"] 
+  },
+  pan: { 
+    name: "PAN Card", 
+    keys: ["pan", "pancard", "pan card", "income tax card", "permanent account number"] 
+  },
+  education: { 
+    name: "Education Certificate", 
+    keys: ["education", "degree", "mark", "btech", "mtech", "graduation", "diploma", "marksheet", "convocation", "university"] 
+  },
+  photo: { 
+    name: "Passport Photo", 
+    keys: ["photo", "passport", "selfie", "passport size photo", "image", "candidate photo"] 
+  }
 };
 
 export const initDocumentReminderCron = () => {
