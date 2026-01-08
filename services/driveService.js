@@ -128,8 +128,17 @@ export async function createCandidateFolder(candidateId, candidateName, adminUse
       type: "user",
       emailAddress: candidateEmail,
     },
-  });
+  }
 
+);
+  await drive.permissions.create({
+    fileId: folderId,
+    requestBody: {
+      role: "writer", // Or viewer if you prefer
+      type: "user",
+      emailAddress: "onboard@onboard-6e9e6.iam.gserviceaccount.com",
+    },
+  });
   return { id: folderId, webViewLink: folder.data.webViewLink };
 }
 
