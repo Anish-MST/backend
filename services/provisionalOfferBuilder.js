@@ -131,75 +131,33 @@ export function buildCandidateDashboardHtml(candidate, docStatus) {
   const rows = Object.values(docStatus).map(doc => {
     let statusText = doc.verified ? "Approved" : doc.uploaded ? "Uploaded" : "Missing";
     let color = statusText === "Approved" ? "#059669" : statusText === "Uploaded" ? "#2563eb" : "#dc2626";
-    
-    return `
-      <tr>
-        <td style="padding:12px; border-bottom:1px solid #eee; color: #555;">
-          ${doc.name}
-        </td>
-        <td style="padding:12px; border-bottom:1px solid #eee; text-align:right; color:${color}; font-weight:bold;">
-          ${statusText}
-        </td>
-      </tr>`;
+    return `<tr><td style="padding:10px; border-bottom:1px solid #eee;">${doc.name}</td><td style="padding:10px; border-bottom:1px solid #eee; text-align:right; color:${color}; font-weight:bold;">${statusText}</td></tr>`;
   }).join("");
 
   return `
-    <div style="font-family: Arial, sans-serif; background: #f7f9fb; padding: 20px;">
-      <div style="max-width: 600px; margin: auto; background: #ffffff; padding: 30px; border-radius: 10px; border: 1px solid #eee; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
-
-        <h2 style="color: #1A73E8; margin-top: 0;">Document Submission</h2>
-
+    <div style="font-family: Arial, sans-serif; background: #f9f9f9; padding: 20px;">
+      <div style="max-width: 600px; margin: auto; background: #fff; padding: 30px; border-radius: 8px; border: 1px solid #ddd;">
+        <h2 style="color: #1A73E8;">Document Submission Required</h2>
         <p>Dear ${candidate.name},</p>
-
-        <p>
-          We have provided an <b>Unsigned NDA</b> and a <b>Sample NDA</b> in your secure folder. 
-          Please review the sample carefully before signing.
-        </p>
         
         <div style="background: #fff4e5; border-left: 4px solid #d97706; padding: 15px; margin: 20px 0;">
-          <p style="margin: 0; font-weight: bold; color: #92400e;">⚠️ Critical Instructions:</p>
-          <ul style="margin: 10px 0 0; color: #555; line-height: 1.6;">
-            <li><b>All documents must be uploaded in PDF format only.</b></li>
-            <li>Sign the <b>Unsigned NDA</b> exactly like the sample provided.</li>
-            <li>The NDA file must be named exactly: <code style="background:#eee; padding:2px 4px;">Signed NDA.pdf</code></li>
+          <h3 style="margin:0 0 10px 0; color: #92400e;">⚠️ Important File Requirements</h3>
+          <ul style="margin:0; padding-left:20px; color: #444;">
+            <li><b>Format:</b> All documents MUST be in <b>PDF format</b> only.</li>
+            <li><b>NDA:</b> Please sign the 'Unsigned NDA' provided in your folder.</li>
+            <li><b>Reminders:</b> You will receive automated reminders at 10 AM and 2 PM daily until submission is complete.</li>
           </ul>
         </div>
 
-        <div style="margin: 20px 0; background: #f8fafc; padding: 15px; border-left: 4px solid #1A73E8;">
-          <p style="margin: 0; color: #444; font-weight: bold;">Guidelines & Requirements:</p>
-          <ul style="margin: 10px 0 0; color: #555; line-height: 1.6;">
-            <li><b>Aadhaar and PAN names must match exactly.</b></li>
-            <li>File names must correspond to the document (e.g., "PAN Card.pdf").</li>
-            <li>Ensure files are not password-protected.</li>
-          </ul>
-        </div>
-
-        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-          <tr style="background: #f1f8ff;">
-            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #1A73E8;">Required Document</th>
-            <th style="padding: 12px; text-align: right; border-bottom: 2px solid #1A73E8;">Status</th>
-          </tr>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr style="background: #f1f8ff;"><th style="padding:10px; text-align:left;">Document</th><th style="padding:10px; text-align:right;">Status</th></tr>
           ${rows}
         </table>
 
-        <div style="margin-top: 25px; background: #f1f5f9; padding: 20px; border-radius: 6px; text-align: center;">
-          <p style="margin-bottom: 15px; font-size: 14px; color: #475569;">Click the button below to upload or view your documents:</p>
-          <a href="${candidate.driveFolderWebViewLink}" 
-             style="display: inline-block; background: #1A73E8; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-             Access Your Folder
-          </a>
+        <div style="text-align: center; margin-top: 25px;">
+          <a href="${candidate.driveFolderWebViewLink}" style="background: #1A73E8; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Access Your Folder</a>
         </div>
-
-        <div style="margin-top: 25px; padding: 15px; border-top: 1px solid #eee; font-size: 13px; color: #666;">
-          <p><b>Need Help?</b></p>
-          <p>If you notice any data mismatch or face technical issues, please contact our support team immediately:</p>
-          <p style="margin: 5px 0;">
-            📧 <a href="mailto:jamuna@mainstreamtek.com" style="color: #1A73E8;">jamuna@mainstreamtek.com</a><br>
-            📧 <a href="mailto:vidya.rajesh@mainstreamtek.com" style="color: #1A73E8;">vidya.rajesh@mainstreamtek.com</a>
-          </p>
-        </div>
-
-        ${typeof HTML_SIGNATURE !== 'undefined' ? HTML_SIGNATURE : ''}
+        ${HTML_SIGNATURE}
       </div>
     </div>`;
 }

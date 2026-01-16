@@ -197,4 +197,22 @@ router.post("/finalize-onboarding", async (req, res) => {
   }
 });
 
+router.post("/override-status", async (req, res) => {
+  const { candidateId, newStatus } = req.body;
+  try {
+    await firestoreService.updateCandidate(candidateId, { status: newStatus });
+    await firestoreService.addLog(candidateId, `MANUAL OVERRIDE: Status changed to ${newStatus}`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post("/update-reminders", async (req, res) => {
+  const { candidateId, reminderTimes } = req.body; // Array of hours e.g. [9, 13, 17]
+  try {
+    await firestoreService.updateCandidate(candidateId, { reminderTimes });
+    await firestoreService.addLog(candidateId, `Reminder schedule updated to: ${reminderTimes.join(", ")}:00`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 export default router;
